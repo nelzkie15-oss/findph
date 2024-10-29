@@ -1,0 +1,14 @@
+@layer base {
+  html,body{
+      background: url('./assets/images/bg-image.png')top center / 1400px 700px /* position / size */
+      no-repeat                /* repeat */                 /* attachment */
+      padding-box              /* origin */
+      content-box              /* clip */
+      rgba(61,173,210,255);
+      font-family: "Montserrat", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: weight;
+      font-style: normal;
+  }
+
+}

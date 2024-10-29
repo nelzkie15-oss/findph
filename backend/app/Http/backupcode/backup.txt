@@ -1,0 +1,287 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Models\User;
+use App\Models\Post;
+use App\Models\Sale;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+
+class AuthController extends Controller
+{
+
+
+//     function createPaymentIntent($amount, $currency = 'PHP'){
+
+
+//     $url = 'https://api.paymongo.com/v1/links';
+
+//         // Your PayMongo secret key
+//         $apiKey = getenv('PAYMONGO_SECRET_KEY');
+
+//         // Initialize cURL
+//         $ch = curl_init($url);
+
+//         // Set cURL options
+//         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+//         curl_setopt($ch, CURLOPT_POST, true);
+//         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+//             'amount' => 1000, // Amount in cents
+//             'currency' => 'PHP',
+//             'payment_method_types' => ['card']
+//         ]));
+//         curl_setopt($ch, CURLOPT_HTTPHEADER, [
+//             'Content-Type: application/json',
+//             'Authorization: Basic ' . base64_encode($apiKey),
+//             'accept' => 'application/json',
+//         ]);
+
+// // Execute the request
+// $response = curl_exec($ch);
+
+// // Check for errors
+// if (curl_errno($ch)) {
+//     echo 'Error:' . curl_error($ch);
+// } else {
+//     // Decode the JSON response
+//     $responseData = json_decode($response, true);
+//     print_r($responseData);
+// }
+
+// // Close cURL session
+// curl_close($ch);
+
+// }
+
+
+    public function register(Request $request){
+        $data = $request->validate([
+            'name' => 'required|min:3|regex:/^([a-zA-Z\s\-\+\/\(\)]*)$/',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|min:8|confirmed'
+        ]);
+       $user = User::create($data);
+    //    $token = $user->createToken($request->name);
+       return [
+            'user' => $user,
+            // 'token' => $token
+       ];
+    }
+
+
+    public function login(Request $request)
+    {
+
+        $credentials = $request->validate([
+            'email' => 'required',
+            'password' => 'required',
+        ]);
+
+        if (Auth::attempt($credentials)) {
+            $user = Auth::user();
+            $userid = Auth::user()->id;
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json(['status' =>200, 'access_token' => $token, 'user_id' => $userid, 'token_type' => 'Bearer']);
+        }
+
+        return response()->json(['message' => 'Unauthorized'], 401);
+    }
+
+    public function logout(Request $request){
+        $request->user()->tokens()->delete();
+        return [
+            'message' => "You are are logged out!",
+        ];
+    }
+
+
+    public function count(Request $request)
+    {
+
+        $sessionId = $request->header('_user_id');
+        $query = Post::query();
+        if ($sessionId) {
+            $query->where('user_id', $sessionId);
+        }
+        $count = $query->count();
+        return response()->json(['count' => $count]);
+
+    }
+
+
+    public function sumprice(Request $request)
+    {
+        $user_id = $request->input('user_id');
+        $sum = Sale::where('seller_id', $user_id)->sum('price');
+        return response()->json([
+            'sum' => $sum,
+        ]);
+    }
+
+
+    public function countprice(Request $request)
+    {
+        $user_id = $request->input('user_id');
+        $count = Sale::where('seller_id', $user_id)->count('price');
+        return response()->json([
+            'count' => $count,
+        ]);
+    }
+
+
+
+
+    public function payment(Request $request)
+    {
+            // $user_id = $request->input('user_id');
+            // $seller_id = $request->input('seller_id');
+            // $title = $request->input('title');
+            // $description = $request->input('description');
+            // $file = $request->input('file');
+            // $price = $request->input('price');
+            // $link = $request->input('link');
+            // $remarks = "Paid";
+
+            // $sale = new Sale;
+            // $sale->buyer_id = $user_id;
+            // $sale->seller_id = $seller_id;
+            // $sale->title = $title;
+            // $sale->description = $description;
+            // $sale->image = $file;
+            // $sale->price = $price;
+            // $sale->payment_status = $remarks;
+            // $sale->save();
+
+           // dd($amount, $description, $remarks);
+              $curl = curl_init();
+              $apiKey = getenv('PAYMONGO_SECRET_KEY');
+
+                curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://api.paymongo.com/v1/links',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+
+                $data = CURLOPT_POSTFIELDS => json_encode([
+                    'data' => [
+                        'attributes' => [
+                            'amount' =>  50000,
+                            "currency" => "PHP",
+                            'description' => "description",
+                            'remarks' => "remarks",
+                            //'checkout_url' => "https://pm.link/org-pAVRQmpXvUN7pYGLvwREQYYw/test/tbRvbow",
+
+                        ]
+                    ]
+                ]),
+                CURLOPT_HTTPHEADER => [
+                    'accept' => 'application/json',
+                    'authorization' => 'Basic c2tfdGVzdF9TNFdSaVFWU2ZoenFYdkVuODl5N0Vvd1Y6',
+                    // 'Authorization: Basic ' . base64_encode($apiKey),
+                    'content-type' => 'application/json',
+            ],
+
+        ]);
+
+        $response = curl_exec($curl);
+        // $response_ = json_decode($data, true);
+        $err = curl_error($curl);
+        curl_close($curl);
+
+        if($err){
+            echo 'Error #: ' .$err;
+        }else{
+            $checkoutUrl = "";
+            $decode = json_decode($response, true);
+            if(isset($decode['data']['attributes']['checkout_url'])){
+            $checkoutUrl = $decode['data']['attributes']['checkout_url'];
+         //   $checkoutUrl = "https://pm.link/org-pAVRQmpXvUN7pYGLvwREQYYw/test/YVzAhMQ";
+            return redirect($checkoutUrl);
+            // header('Location: ' . $checkoutUrl);
+            // exit();
+
+        }else{
+            echo "Failed to get checkout URL from response.";
+        }
+      }
+
+   }
+
+
+
+   public function createCheckout(Request $request)
+   {
+       // Replace with your PayMongo secret key
+       $apiKey = getenv('PAYMONGO_SECRET_KEY');
+
+            // Initialize cURL
+            $ch = curl_init();
+
+            // Set the URL for the request
+            curl_setopt($ch, CURLOPT_URL, "https://api.paymongo.com/v1/links");
+
+            // Specify that we want the response as a string
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+            // Set the request method to POST
+            curl_setopt($ch, CURLOPT_POST, true);
+
+            // Set the headers
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'accept' => 'application/json',
+                //'authorization' => 'Basic c2tfdGVzdF9TNFdSaVFWU2ZoenFYdkVuODl5N0Vvd1Y6',
+                'authorization: Basic ' . base64_encode($apiKey),
+                'content-type' => 'application/json',
+            ]);
+
+            // Set the POST fields
+            $data = [
+                'data' => [
+                    'attributes' => [
+                        'amount' =>  50000,
+                        'currency' => "PHP",
+                        'description' => "description",
+                        'remarks' => "remarks",
+                ],
+                ],
+            ];
+
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+            // Execute the cURL request
+            $response = curl_exec($ch);
+
+            // Check for errors
+            if (curl_errno($ch)) {
+                echo 'Curl error: ' . curl_error($ch);
+            } else {
+                // Decode the response
+                $responseData = json_decode($response, true);
+
+                // Print the response (for debugging purposes)
+                print_r($responseData);
+
+                // Extract the checkout URL
+                if (isset($responseData['data']['attributes']['checkout_url'])) {
+                    $checkoutUrl = $responseData['data']['attributes']['checkout_url'];
+                    return redirect($checkoutUrl);
+                } else {
+                    // return back()->withErrors(['message' => 'Payment creation failed.']);
+                    echo "Checkout URL not found in the response.";
+                }
+            }
+
+            // Close cURL session
+            curl_close($ch);
+     }
+
+
+}
